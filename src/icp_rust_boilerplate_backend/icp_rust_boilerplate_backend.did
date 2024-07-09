@@ -1,0 +1,60 @@
+type LeaseAgreement = record {
+  id : nat64;
+  rent : float64;
+  end_date : nat64;
+  created_at : nat64;
+  start_date : nat64;
+  property_id : nat64;
+  tenant : text;
+  digital_signature : text;
+};
+type LeaseAgreementPayload = record {
+  rent : float64;
+  end_date : nat64;
+  start_date : nat64;
+  property_id : nat64;
+  tenant : text;
+  digital_signature : text;
+};
+type MaintenanceRequest = record {
+  id : nat64;
+  status : text;
+  description : text;
+  created_at : nat64;
+  property_id : nat64;
+  priority : text;
+};
+type MaintenanceRequestPayload = record {
+  status : text;
+  description : text;
+  property_id : nat64;
+  priority : text;
+};
+type Property = record {
+  id : nat64;
+  status : text;
+  owner : text;
+  valuation : float64;
+  created_at : nat64;
+  address : text;
+};
+type PropertyPayload = record {
+  status : text;
+  owner : text;
+  valuation : float64;
+  address : text;
+};
+type Result = variant { Ok : LeaseAgreement; Err : text };
+type Result_1 = variant { Ok : MaintenanceRequest; Err : text };
+type Result_2 = variant { Ok : Property; Err : text };
+type Result_3 = variant { Ok : vec LeaseAgreement; Err : text };
+type Result_4 = variant { Ok : vec MaintenanceRequest; Err : text };
+type Result_5 = variant { Ok : vec Property; Err : text };
+service : {
+  create_lease_agreement : (LeaseAgreementPayload) -> (Result);
+  create_maintenance_request : (MaintenanceRequestPayload) -> (Result_1);
+  create_property : (PropertyPayload) -> (Result_2);
+  get_all_lease_agreements : () -> (Result_3) query;
+  get_all_maintenance_requests : () -> (Result_4) query;
+  get_all_properties : () -> (Result_5) query;
+}
