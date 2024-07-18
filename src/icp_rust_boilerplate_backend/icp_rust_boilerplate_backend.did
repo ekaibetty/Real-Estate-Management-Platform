@@ -1,3 +1,8 @@
+type Error = variant {
+  NotFound : record { msg : text };
+  ValidationError : record { msg : text };
+  Unauthorized : record { msg : text };
+};
 type LeaseAgreement = record {
   id : nat64;
   rent : float64;
@@ -44,17 +49,24 @@ type PropertyPayload = record {
   valuation : float64;
   address : text;
 };
-type Result = variant { Ok : LeaseAgreement; Err : text };
-type Result_1 = variant { Ok : MaintenanceRequest; Err : text };
-type Result_2 = variant { Ok : Property; Err : text };
-type Result_3 = variant { Ok : vec LeaseAgreement; Err : text };
-type Result_4 = variant { Ok : vec MaintenanceRequest; Err : text };
-type Result_5 = variant { Ok : vec Property; Err : text };
+type Result = variant { Ok : LeaseAgreement; Err : Error };
+type Result_1 = variant { Ok : MaintenanceRequest; Err : Error };
+type Result_2 = variant { Ok : Property; Err : Error };
+type Result_3 = variant { Ok; Err : Error };
+type Result_4 = variant { Ok : vec LeaseAgreement; Err : Error };
+type Result_5 = variant { Ok : vec MaintenanceRequest; Err : Error };
+type Result_6 = variant { Ok : vec Property; Err : Error };
 service : {
   create_lease_agreement : (LeaseAgreementPayload) -> (Result);
   create_maintenance_request : (MaintenanceRequestPayload) -> (Result_1);
   create_property : (PropertyPayload) -> (Result_2);
-  get_all_lease_agreements : () -> (Result_3) query;
-  get_all_maintenance_requests : () -> (Result_4) query;
-  get_all_properties : () -> (Result_5) query;
+  delete_lease_agreement : (nat64) -> (Result_3);
+  delete_maintenance_request : (nat64) -> (Result_3);
+  delete_property : (nat64) -> (Result_3);
+  get_all_lease_agreements : () -> (Result_4) query;
+  get_all_maintenance_requests : () -> (Result_5) query;
+  get_all_properties : () -> (Result_6) query;
+  update_lease_agreement : (nat64, LeaseAgreementPayload) -> (Result);
+  update_maintenance_request : (nat64, MaintenanceRequestPayload) -> (Result_1);
+  update_property : (nat64, PropertyPayload) -> (Result_2);
 }

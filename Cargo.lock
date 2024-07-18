@@ -317,6 +317,7 @@ dependencies = [
  "ic-cdk",
  "ic-stable-structures",
  "serde",
+ "serde_derive",
  "serde_json",
 ]
 
