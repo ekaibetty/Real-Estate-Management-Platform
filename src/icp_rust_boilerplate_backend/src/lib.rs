@@ -29,7 +29,7 @@ impl Property {
             owner,
             valuation,
             status,
-            created_at: time(),
+            created_at: time() / 1_000_000_000, // Convert nanoseconds to seconds
         }
     }
 }
@@ -63,7 +63,7 @@ impl LeaseAgreement {
             rent,
             start_date,
             end_date,
-            created_at: time(),
+            created_at: time() / 1_000_000_000, // Convert nanoseconds to seconds
             digital_signature, // Initialize digital signature
         }
     }
@@ -86,7 +86,7 @@ impl MaintenanceRequest {
             property_id,
             description,
             status,
-            created_at: time(),
+            created_at: time() / 1_000_000_000, // Convert nanoseconds to seconds
             priority, // Initialize priority
         }
     }
@@ -150,6 +150,15 @@ struct MaintenanceRequestPayload {
 
 // Smart Contract Functions
 
+/// Creates a new property and stores it in the stable storage.
+/// 
+/// # Arguments
+/// 
+/// * `payload` - A `PropertyPayload` containing the details of the property.
+/// 
+/// # Returns
+/// 
+/// * `Result<Property, String>` - The created property or an error message.
 #[ic_cdk::update]
 fn create_property(payload: PropertyPayload) -> Result<Property, String> {
     // Validate the payload to ensure all fields are provided
@@ -175,6 +184,11 @@ fn create_property(payload: PropertyPayload) -> Result<Property, String> {
     Ok(property)
 }
 
+/// Retrieves all properties from the stable storage.
+/// 
+/// # Returns
+/// 
+/// * `Result<Vec<Property>, String>` - A vector of properties or an error message.
 #[ic_cdk::query]
 fn get_all_properties() -> Result<Vec<Property>, String> {
     PROPERTIES_STORAGE.with(|storage| {
@@ -187,19 +201,41 @@ fn get_all_properties() -> Result<Vec<Property>, String> {
     })
 }
 
-#[ic_cdk::update]
-fn create_lease_agreement(payload: LeaseAgreementPayload) -> Result<LeaseAgreement, String> {
-    // Validate the payload to ensure all fields are provided
+/// Validates the lease agreement payload.
+/// 
+/// # Arguments
+/// 
+/// * `payload` - A `LeaseAgreementPayload` containing the details of the lease agreement.
+/// 
+/// # Returns
+/// 
+/// * `Result<(), String>` - Ok if valid, or an error message.
+fn validate_lease_agreement_payload(payload: &LeaseAgreementPayload) -> Result<(), String> {
     if payload.tenant.is_empty() {
         return Err("Tenant name is required".to_string());
     }
+    if payload.start_date >= payload.end_date {
+        return Err("Invalid dates. Start date must be before end date".to_string());
+    }
+    Ok(())
+}
+
+/// Creates a new lease agreement and stores it in the stable storage.
+/// 
+/// # Arguments
+/// 
+/// * `payload` - A `LeaseAgreementPayload` containing the details of the lease agreement.
+/// 
+/// # Returns
+/// 
+/// * `Result<LeaseAgreement, String>` - The created lease agreement or an error message.
+#[ic_cdk::update]
+fn create_lease_agreement(payload: LeaseAgreementPayload) -> Result<LeaseAgreement, String> {
+    // Validate the payload to ensure all fields are provided
+    validate_lease_agreement_payload(&payload)?;
     // Validate the property ID
     if !PROPERTIES_STORAGE.with(|storage| storage.borrow().contains_key(&payload.property_id)) {
         return Err("Property not found".to_string());
-    }
-    // Validate the user input
-    if payload.start_date >= payload.end_date {
-        return Err("Invalid dates. Start date must be before end date".to_string());
     }
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
@@ -222,6 +258,11 @@ fn create_lease_agreement(payload: LeaseAgreementPayload) -> Result<LeaseAgreeme
     Ok(lease)
 }
 
+/// Retrieves all lease agreements from the stable storage.
+/// 
+/// # Returns
+/// 
+/// * `Result<Vec<LeaseAgreement>, String>` - A vector of lease agreements or an error message.
 #[ic_cdk::query]
 fn get_all_lease_agreements() -> Result<Vec<LeaseAgreement>, String> {
     LEASES_STORAGE.with(|storage| {
@@ -238,20 +279,41 @@ fn get_all_lease_agreements() -> Result<Vec<LeaseAgreement>, String> {
     })
 }
 
+/// Validates the maintenance request payload.
+/// 
+/// # Arguments
+/// 
+/// * `payload` - A `MaintenanceRequestPayload` containing the details of the maintenance request.
+/// 
+/// # Returns
+/// 
+/// * `Result<(), String>` - Ok if valid, or an error message.
+fn validate_maintenance_request_payload(payload: &MaintenanceRequestPayload) -> Result<(), String> {
+    if payload.status != "pending" && payload.status != "completed" {
+        return Err("Invalid status. Status must be either 'pending' or 'completed'".to_string());
+    }
+    Ok(())
+}
+
+/// Creates a new maintenance request and stores it in the stable storage.
+/// 
+/// # Arguments
+/// 
+/// * `payload` - A `MaintenanceRequestPayload` containing the details of the maintenance request.
+/// 
+/// # Returns
+/// 
+/// * `Result<MaintenanceRequest, String>` - The created maintenance request or an error message.
 #[ic_cdk::update]
 fn create_maintenance_request(
     payload: MaintenanceRequestPayload,
 ) -> Result<MaintenanceRequest, String> {
     // Validate the user input
-    if payload.status != "pending" && payload.status != "completed" {
-        return Err("Invalid status. Status must be either 'pending' or 'completed'".to_string());
-    }
-
+    validate_maintenance_request_payload(&payload)?;
     // Validate the property ID
     if !PROPERTIES_STORAGE.with(|storage| storage.borrow().contains_key(&payload.property_id)) {
         return Err("Property not found".to_string());
     }
-
     // Create the maintenance request
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
@@ -267,6 +329,11 @@ fn create_maintenance_request(
     Ok(request)
 }
 
+/// Retrieves all maintenance requests from the stable storage.
+/// 
+/// # Returns
+/// 
+/// * `Result<Vec<MaintenanceRequest>, String>` - A vector of maintenance requests or an error message.
 #[ic_cdk::query]
 fn get_all_maintenance_requests() -> Result<Vec<MaintenanceRequest>, String> {
     MAINTENANCE_STORAGE.with(|storage| {
@@ -287,11 +354,11 @@ fn get_all_maintenance_requests() -> Result<Vec<MaintenanceRequest>, String> {
 
 impl Storable for Property {
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
+        Cow::Owned(Encode!(self).expect("Encoding failed"))
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
+        Decode!(bytes.as_ref(), Self).expect("Decoding failed")
     }
 }
 
@@ -302,11 +369,11 @@ impl BoundedStorable for Property {
 
 impl Storable for LeaseAgreement {
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
+        Cow::Owned(Encode!(self).expect("Encoding failed"))
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
+        Decode!(bytes.as_ref(), Self).expect("Decoding failed")
     }
 }
 
@@ -317,11 +384,11 @@ impl BoundedStorable for LeaseAgreement {
 
 impl Storable for MaintenanceRequest {
     fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
+        Cow::Owned(Encode!(self).expect("Encoding failed"))
     }
 
     fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
+        Decode!(bytes.as_ref(), Self).expect("Decoding failed")
     }
 }
 
